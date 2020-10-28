@@ -4,86 +4,137 @@ import zipfile
 from pathlib import Path
 import functools
 
+# desperately need to begin testing all functions, classes and associated methods
+# do this before it's too late!
 
-DATA_DIR = Path('data')
-
-TRAINING_DATA_ZIP = DATA_DIR / 'rumoureval-2019-training-data.zip'
 TRAINING_DATA_DIR = 'rumoureval-2019-training-data'
-TRAINING_LABELS = Path(TRAINING_DATA_DIR) / 'train-key.json'
-
-# UNZIP TRAINING DATA
-def unzip_data(TRAINING_DATA_DIR, TRAINING_DATA_ZIP):
-    if os.path.isdir(TRAINING_DATA_DIR):
-        raise IsADirectoryError("Directory already exists!")
-    elif(os.path.isfile(TRAINING_DATA_ZIP)):
-        with zipfile.ZipFile(TRAINING_DATA_ZIP, 'r') as zip:
-            zip.extractall()
-    # else:
-    #     raise FileDoesNotExist
-
-test_file = Path(TRAINING_DATA_DIR) / 'twitter-english/charliehebdo/552783667052167168/source-tweet/552783667052167168.json'
-labels = Path(TRAINING_DATA_DIR) / 'train-key.json'
-
-
-with open(test_file, "r") as json_file:
-    tweet_dict = json.load(json_file)
-
-with open(labels, "r") as json_labels:
-    label_dict = json.load(json_labels)
+TRAINING_LABELS = 'rumoureval-2019-training-data/train-key.json'
+DATA_SOURCE = 'twitter-english'
+TWITTER_SUBJECT = 'charliehebdo'
+TWEET_TYPE = 'replies'
 
 class Post:
-    def __init__(self, TwitterPost, Labels):
+    def __init__(self, TwitterPost):
+
+        # TODO: consider what information we need to extract from the post
+        # TODO: ideas: depth, retweets, sensitive could all be used in feature engineering
 
         self._id = TwitterPost['id']
-        self._post_id = TwitterPost['text']
-
-        # Check if tweet is a source or reply
-        if(TwitterPost['in_reply_to_user_id'] == None):
-            self._source = True
-        else:
-            self._reply = True
-
+        self._text = TwitterPost['text']
         self._retweet_count = TwitterPost['retweet_count']
-
-        # TODO: add some conditions here for sources, reply etc.
-
         self._parent_tweet = TwitterPost['in_reply_to_status_id']
-        self._sensitive = TwitterPost['possibly_sensitive']
-        self._language = TwitterPost['lang']
 
     def get_id(self):
         return self._id
 
+    def get_text(self):
+        return self._text
+
     def get_label(self, Labels):
-        if(self._source):
-            return Labels['subtaskbenglish'][str(self._id)]
-        elif(self._reply):
-            return Labels['subtaskaenglish'][str(self._id)]
+        # TODO: need a try else clause to get dev set labels!
+        return Labels['subtaskaenglish'][str(self._id)]
 
-def get_directory_structure(rootdir):
-    """
-    Creates a nested dictionary that represents the folder structure of rootdir
-    """
-    dir = {}
-    rootdir = rootdir.rstrip(os.sep)
-    start = rootdir.rfind(os.sep) + 1
-    for path, dirs, files in os.walk(rootdir):
-        folders = path[start:].split(os.sep)
-        subdir = dict.fromkeys(files)
-        parent = functools.reduce(dict.get, folders[:-1], dir)
-        parent[folders[-1]] = subdir
-    return dir
-
-dir_dict = get_directory_structure('rumoureval-2019-training-data/twitter-english')
-print(dir_dict['twitter-english']['charliehebdo']['552783667052167168'])
+    def info(self, Labels):
+        print('ID: {id}\nText: {text}\nLabel: {label}'.format(
+            id=self.get_id(),
+            text=self.get_text(),
+            label=self.get_label(Labels)))
 
 
-post = Post(tweet_dict, label_dict)
-print(post.get_id())
+# inputs: source (i.e. twitter or reddit), 
+#         subject (i.e. charliehebdo)
+#         type (i.e, source or reply)
 
-    # Keys of Twitter dictionary
-    # 'contributors', 'truncated', 'text', 'in_reply_to_status_id', 'id',
-    # 'favorite_count', 'source', 'retweeted', 'coordinates', 'entities',
-    # 'in_reply_to_screen_name', 'id_str', 'retweet_count', 'in_reply_to_user_id',
-    # 'favorited', 'user', 'geo', 'in_reply_to_user_id_str', 'possibly_sensitive', 'lang',
-    # 'created_at', 'in_reply_to_status_id_str', 'place', 'extended_entities']
+# returns a list of all the json file paths
+
+def get_post_paths(source, subject, type): 
+
+    root = os.listdir(TRAINING_DATA_DIR)
+
+    for source in root:
+        file_path_list = []
+        if (source == DATA_SOURCE):
+            subject_path = os.path.join(TRAINING_DATA_DIR, source)
+            subject_list = os.listdir(subject_path)
+            for subject in subject_list:
+                if(subject == TWITTER_SUBJECT):
+                    tweet_path = os.path.join(subject_path, subject)
+                    tweet_ids = os.listdir(tweet_path)
+                    for identifier in tweet_ids:
+                        id_path = os.path.join(tweet_path, identifier)
+                        id_dir = os.listdir(id_path)
+                        for tweet_type in id_dir:
+                            if(tweet_type == TWEET_TYPE):
+                                file_paths = os.path.join(id_path, tweet_type)
+                                file_list = os.listdir(file_paths)
+                                for file in file_list:
+                                    file_path_list.append(os.path.join(file_paths, file))
+            return(file_path_list)
+
+
+
+def get_post(file_path):
+    # given a path to a json file, return a Post
+    with open(file_path, "r") as json_file:
+        tweet_dict = json.load(json_file)
+    return Post(tweet_dict)
+
+def get_all_posts(file_path_list):
+    # get a list of Post objects
+    posts = []
+    for file_path in file_path_list:
+        post = get_post(file_path)
+        posts.append(post)
+    return posts
+
+def build_dataset(posts, labels):
+
+    data = []
+
+    for i in range(len(posts)):
+        data.append(posts[i].get_text())
+        print(posts[i].get_label(labels))
+    return data
+
+
+def main():
+    with open(TRAINING_LABELS, "r") as json_labels:
+        labels = json.load(json_labels)
+
+    post_paths = get_post_paths(DATA_SOURCE, TWITTER_SUBJECT, TWEET_TYPE)
+
+    posts = get_all_posts(post_paths)
+    
+    a = posts[0].get_label(labels)
+    print(a)
+
+    a = build_dataset(posts, labels)
+
+    # getting KeyError when trying to return label here
+    # checked the train file and looks like the entry is missing/doesnt exist
+    # this is likely because we are trying to access test data...
+    # 552789083211460608
+    # 552789083211460608
+    
+
+ # Keys of Twitter dictionary
+# 'contributors', 'truncated', 'text', 'in_reply_to_status_id', 'id',
+# 'favorite_count', 'source', 'retweeted', 'coordinates', 'entities',
+# 'in_reply_to_screen_name', 'id_str', 'retweet_count', 'in_reply_to_user_id',
+# 'favorited', 'user', 'geo', 'in_reply_to_user_id_str', 'possibly_sensitive', 'lang',
+# 'created_at', 'in_reply_to_status_id_str', 'place', 'extended_entities']   
+    
+    
+    
+
+if __name__ == "__main__":
+    main()
+    
+
+
+
+                    
+
+      
+
+
