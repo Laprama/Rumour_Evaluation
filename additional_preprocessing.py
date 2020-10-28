@@ -4,6 +4,9 @@ import zipfile
 from pathlib import Path
 import functools
 
+# desperately need to begin testing all functions, classes and associated methods
+# do this before it's too late!
+
 TRAINING_DATA_DIR = 'rumoureval-2019-training-data'
 TRAINING_LABELS = 'rumoureval-2019-training-data/train-key.json'
 DATA_SOURCE = 'twitter-english'
