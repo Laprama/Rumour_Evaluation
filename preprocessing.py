@@ -18,7 +18,7 @@ TWEET_TYPE = 'replies'
 class Post:
     def __init__(self, TwitterPost):
 
-        # TODO: consider what information we need to extract from the post
+        # TODO: consider what features we need to extract from the post
         # TODO: ideas: depth, retweets, sensitive could all be used in feature engineering
 
         self._id = TwitterPost['id']
@@ -27,7 +27,6 @@ class Post:
         self._parent_tweet = TwitterPost['in_reply_to_status_id']
         self._example_type = None
 
-        
     def get_id(self):
         return self._id
 
@@ -109,6 +108,9 @@ def get_files(tweet_type, id_path):
         print(f"Couldn't get {file_paths} or {file_list} train flag.")
     return file_paths, file_list
 
+# TODO: this is actually specific to task A (i.e. support, deny etc.)
+# TODO: will need to make this sufficiently generic to handle task B  
+
 def get_post_paths(source, subject, type): 
 
     root = os.listdir(TRAINING_DATA_DIR)
@@ -118,33 +120,13 @@ def get_post_paths(source, subject, type):
         subject_path, subject_list = get_subject(source=DATA_SOURCE)
         for subject in subject_list:
             # only needed to restrict extraction to a single subject for now
-            if(subject == TWITTER_SUBJECT):
-                tweet_path, tweet_ids = get_tweets(subject, subject_path)
-                for identifier in tweet_ids:
-                    id_path, id_dir = get_ids(identifier, tweet_path)
-                    for tweet_type in id_dir:
-                        # only needed to get all replies
-                        if(tweet_type == TWEET_TYPE):
-                            file_paths, file_list = get_files(tweet_type, id_path)
-                            for file in file_list:
-                                file_path_list.append(os.path.join(file_paths, file))
-    return(file_path_list)
-
-
-def get_all_post_paths(source, subject, type): 
-
-    root = os.listdir(TRAINING_DATA_DIR)
-
-    for source in root:
-        file_path_list = []
-        subject_path, subject_list = get_subject(source=DATA_SOURCE)
-        for subject in subject_list:
+            #if(subject == TWITTER_SUBJECT):
             tweet_path, tweet_ids = get_tweets(subject, subject_path)
             for identifier in tweet_ids:
                 id_path, id_dir = get_ids(identifier, tweet_path)
                 for tweet_type in id_dir:
                     # only needed to get all replies
-                    if(tweet_type == TWEET_TYPE):
+                    if(tweet_type == 'replies' or tweet_type == 'source-tweet'):
                         file_paths, file_list = get_files(tweet_type, id_path)
                         for file in file_list:
                             file_path_list.append(os.path.join(file_paths, file))
@@ -207,6 +189,20 @@ def split_train_dev(posts):
             raise RuntimeError(f"Example type (train-test) has not been set")
     return train_posts, dev_posts
 
+'''
+Need to build a depth function similar to the below
+
+def walk(thread: Dict, depth: int) -> None:
+    for post_id, subthread in thread.items():
+        post_depths[post_id] = depth
+        if isinstance(subthread, Dict):
+            walk(subthread, depth + 1)
+
+def calc_post_depths_from_thread_structure(thread_structure: Dict):
+    post_depths = {}
+    walk(thread_structure, 0)
+    return post_depths
+'''
 
 def main():
     with open(TRAINING_LABELS, "r") as json_tlabels:
@@ -217,6 +213,8 @@ def main():
     
     
     post_paths = get_post_paths(DATA_SOURCE, TWITTER_SUBJECT, TWEET_TYPE)
+    print(len(post_paths))
+    
     posts = get_all_posts(post_paths)
     posts = set_flag(posts, training_labels, dev_labels)
 
@@ -233,7 +231,7 @@ def main():
 
    # print(get_subject(source=DATA_SOURCE))
    # print(get_tweets(TWITTER_SUBJECT, 'rumoureval-2019-training-data/twitter-english'))
-   
+
 
 
     
