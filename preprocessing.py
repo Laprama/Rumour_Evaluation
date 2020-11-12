@@ -3,6 +3,7 @@ import json
 import zipfile
 from pathlib import Path
 import functools
+from concurrent.futures import ProcessPoolExecutor
 
 # desperately need to begin testing all functions, classes and associated methods
 # do this before it's too late!
@@ -130,6 +131,26 @@ def get_post_paths(source, subject, type):
     return(file_path_list)
 
 
+def get_all_post_paths(source, subject, type): 
+
+    root = os.listdir(TRAINING_DATA_DIR)
+
+    for source in root:
+        file_path_list = []
+        subject_path, subject_list = get_subject(source=DATA_SOURCE)
+        for subject in subject_list:
+            tweet_path, tweet_ids = get_tweets(subject, subject_path)
+            for identifier in tweet_ids:
+                id_path, id_dir = get_ids(identifier, tweet_path)
+                for tweet_type in id_dir:
+                    # only needed to get all replies
+                    if(tweet_type == TWEET_TYPE):
+                        file_paths, file_list = get_files(tweet_type, id_path)
+                        for file in file_list:
+                            file_path_list.append(os.path.join(file_paths, file))
+    return(file_path_list)
+
+
 def get_post(file_path):
     # given a path to a json file, return a Post
     with open(file_path, "r") as json_file:
@@ -145,7 +166,11 @@ def get_all_posts(file_path_list):
     return posts
 
 def build_dataset(posts, training_labels, dev_labels):
-
+    
+    """
+    Given a list of Post objects, this function seperates
+    data (i.e. text) and labels and returns them as arrays.
+    """
     data = []
     labels = []
     for p in posts:
@@ -154,11 +179,22 @@ def build_dataset(posts, training_labels, dev_labels):
     return data, labels
 
 def set_flag(posts, training_labels, dev_labels):
+    """
+    Given a list of Post objects, this function iterates
+    through each of them and identifies whether the example
+    is a training or development example. The output is a
+    list of Post objects with the appropriate flag set.
+    """
     for post in posts:
         post.flag_train_dev(training_labels, dev_labels)
     return posts
 
 def split_train_dev(posts):
+    """
+    Given a list of Post objects, this function seperates 
+    training and development examples into seperate lists
+    and returns them.
+    """
     train_posts = []
     dev_posts = []
 
@@ -178,7 +214,8 @@ def main():
     
     with open(DEV_LABELS, "r") as json_dlabels:
         dev_labels = json.load(json_dlabels)
-
+    
+    
     post_paths = get_post_paths(DATA_SOURCE, TWITTER_SUBJECT, TWEET_TYPE)
     posts = get_all_posts(post_paths)
     posts = set_flag(posts, training_labels, dev_labels)
@@ -196,6 +233,10 @@ def main():
 
    # print(get_subject(source=DATA_SOURCE))
    # print(get_tweets(TWITTER_SUBJECT, 'rumoureval-2019-training-data/twitter-english'))
+   
+
+
+    
 
 
 
