@@ -9,6 +9,7 @@ import functools
 
 TRAINING_DATA_DIR = 'rumoureval-2019-training-data'
 TRAINING_LABELS = 'rumoureval-2019-training-data/train-key.json'
+DEV_LABELS = 'rumoureval-2019-training-data/dev-key.json'
 DATA_SOURCE = 'twitter-english'
 TWITTER_SUBJECT = 'charliehebdo'
 TWEET_TYPE = 'replies'
@@ -23,16 +24,43 @@ class Post:
         self._text = TwitterPost['text']
         self._retweet_count = TwitterPost['retweet_count']
         self._parent_tweet = TwitterPost['in_reply_to_status_id']
+        self._example_type = None
 
+        
     def get_id(self):
         return self._id
 
     def get_text(self):
         return self._text
+    
+    def get_flag(self):
+        return self._example_type
 
-    def get_label(self, Labels):
-        # TODO: need a try else clause to get dev set labels!
-        return Labels['subtaskaenglish'][str(self._id)]
+    def get_label(self, TrainingLabels, DevLabels):
+        try:
+            label = TrainingLabels['subtaskaenglish'][str(self._id)]
+            try:
+                self._train_example = True
+                self._dev_eample = False
+            except RuntimeError:
+                print(f"{self._id}: couldn't set train flag.")
+            return label 
+        except KeyError as e:
+            label = DevLabels['subtaskaenglish'][str(self._id)]
+            try:
+                self._train_example = False
+                self._dev_example = True
+            except RuntimeError:
+                print(f"{self._id}: couldn't set dev flag.")
+            return label
+
+    def flag_train_dev(self, TrainingLabels, DevLabels):
+        try:
+            train = TrainingLabels['subtaskaenglish'][str(self._id)]
+            self._example_type = True
+        except KeyError as e:
+            dev = DevLabels['subtaskaenglish'][str(self._id)]
+            self._example_type = False
 
     def info(self, Labels):
         print('ID: {id}\nText: {text}\nLabel: {label}'.format(
@@ -47,30 +75,59 @@ class Post:
 
 # returns a list of all the json file paths
 
+def get_subject(source):
+    if (source == DATA_SOURCE):
+        try:
+            subject_path = os.path.join(TRAINING_DATA_DIR, source)
+            subject_list = os.listdir(subject_path)
+        except RuntimeError:
+            print(f"Couldn't get {subject_path} or {subject_list} train flag.")
+    return subject_path, subject_list
+
+def get_tweets(subject, subject_path):
+    try:
+        tweet_path = os.path.join(subject_path, subject)
+        tweet_ids = os.listdir(tweet_path)
+    except RuntimeError:
+        print(f"Couldn't get {tweet_path} or {tweet_ids} train flag.")
+    return tweet_path, tweet_ids
+
+def get_ids(identifier, tweet_path):
+    try:
+        id_path = os.path.join(tweet_path, identifier)
+        id_dir = os.listdir(id_path)
+    except RuntimeError:
+        print(f"Couldn't get {id_paths} or {id_dir} train flag.")
+    return id_path, id_dir
+
+def get_files(tweet_type, id_path):
+    try:
+        file_paths = os.path.join(id_path, tweet_type)
+        file_list = os.listdir(file_paths)
+    except RuntimeError:
+        print(f"Couldn't get {file_paths} or {file_list} train flag.")
+    return file_paths, file_list
+
 def get_post_paths(source, subject, type): 
 
     root = os.listdir(TRAINING_DATA_DIR)
 
     for source in root:
         file_path_list = []
-        if (source == DATA_SOURCE):
-            subject_path = os.path.join(TRAINING_DATA_DIR, source)
-            subject_list = os.listdir(subject_path)
-            for subject in subject_list:
-                if(subject == TWITTER_SUBJECT):
-                    tweet_path = os.path.join(subject_path, subject)
-                    tweet_ids = os.listdir(tweet_path)
-                    for identifier in tweet_ids:
-                        id_path = os.path.join(tweet_path, identifier)
-                        id_dir = os.listdir(id_path)
-                        for tweet_type in id_dir:
-                            if(tweet_type == TWEET_TYPE):
-                                file_paths = os.path.join(id_path, tweet_type)
-                                file_list = os.listdir(file_paths)
-                                for file in file_list:
-                                    file_path_list.append(os.path.join(file_paths, file))
-            return(file_path_list)
-
+        subject_path, subject_list = get_subject(source=DATA_SOURCE)
+        for subject in subject_list:
+            # only needed to restrict extraction to a single subject for now
+            if(subject == TWITTER_SUBJECT):
+                tweet_path, tweet_ids = get_tweets(subject, subject_path)
+                for identifier in tweet_ids:
+                    id_path, id_dir = get_ids(identifier, tweet_path)
+                    for tweet_type in id_dir:
+                        # only needed to get all replies
+                        if(tweet_type == TWEET_TYPE):
+                            file_paths, file_list = get_files(tweet_type, id_path)
+                            for file in file_list:
+                                file_path_list.append(os.path.join(file_paths, file))
+    return(file_path_list)
 
 
 def get_post(file_path):
@@ -87,35 +144,64 @@ def get_all_posts(file_path_list):
         posts.append(post)
     return posts
 
-def build_dataset(posts, labels):
+def build_dataset(posts, training_labels, dev_labels):
 
     data = []
+    labels = []
+    for p in posts:
+        data.append(p.get_text())
+        labels.append(p.get_label(training_labels, dev_labels))
+    return data, labels
 
-    for i in range(len(posts)):
-        data.append(posts[i].get_text())
-        print(posts[i].get_label(labels))
-    return data
+def set_flag(posts, training_labels, dev_labels):
+    for post in posts:
+        post.flag_train_dev(training_labels, dev_labels)
+    return posts
+
+def split_train_dev(posts):
+    train_posts = []
+    dev_posts = []
+
+    for post in posts:
+        if(post.get_flag() == True):
+            train_posts.append(post)
+        elif(post.get_flag() == False):
+            dev_posts.append(post)
+        else:
+            raise RuntimeError(f"Example type (train-test) has not been set")
+    return train_posts, dev_posts
 
 
 def main():
-    with open(TRAINING_LABELS, "r") as json_labels:
-        labels = json.load(json_labels)
+    with open(TRAINING_LABELS, "r") as json_tlabels:
+        training_labels = json.load(json_tlabels)
+    
+    with open(DEV_LABELS, "r") as json_dlabels:
+        dev_labels = json.load(json_dlabels)
 
     post_paths = get_post_paths(DATA_SOURCE, TWITTER_SUBJECT, TWEET_TYPE)
-
     posts = get_all_posts(post_paths)
-    
-    a = posts[0].get_label(labels)
-    print(a)
+    posts = set_flag(posts, training_labels, dev_labels)
 
-    a = build_dataset(posts, labels)
+    train_posts, dev_posts = split_train_dev(posts)
+    # print(len(train_posts), len(dev_posts))
+   
+    train_data, train_labels = build_dataset(train_posts, training_labels, dev_labels)
+    dev_data, dev_labels = build_dataset(dev_posts, training_labels, dev_labels)
 
-    # getting KeyError when trying to return label here
-    # checked the train file and looks like the entry is missing/doesnt exist
-    # this is likely because we are trying to access test data...
-    # 552789083211460608
-    # 552789083211460608
+    assert(len(train_data) == len(train_labels))
+    assert(len(dev_data) == len(dev_labels))
+
+    print((len(train_data), len(train_labels)), (len(dev_data), len(dev_labels)))
+
+   # print(get_subject(source=DATA_SOURCE))
+   # print(get_tweets(TWITTER_SUBJECT, 'rumoureval-2019-training-data/twitter-english'))
+
+
+
     
+
+
 
  # Keys of Twitter dictionary
 # 'contributors', 'truncated', 'text', 'in_reply_to_status_id', 'id',
