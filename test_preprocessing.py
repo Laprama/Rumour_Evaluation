@@ -1,4 +1,5 @@
 from preprocessing import *
+from alt_preprocessing import *
 import pytest
 
 # Labels
@@ -21,4 +22,7 @@ def test_class_instantiation():
     assert(str(post.get_id()) == '552806614973960192')
 
 
-# Path to random selection of tweets in json file format - source
+def test_get_dict():
+    path = 'rumoureval-2019-training-data/twitter-english/charliehebdo/552783667052167168/replies/552785374507175936.json'
+    my_dict = get_dict(path)
+    assert(my_dict['id']==552785374507175936)
