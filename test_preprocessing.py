@@ -1,28 +1,85 @@
-from preprocessing import *
-from alt_preprocessing import *
+from twitter_data_extraction import *
 import pytest
 
-# Labels
-TRAINING_LABELS = 'rumoureval-2019-training-data/train-key.json'
-with open(TRAINING_LABELS, "r") as json_labels:
-        labels = json.load(json_labels)
+def test_extraction_functions():
+    '''
+    Data
+    '''
+    training_data_path = 'data/rumoureval-2019-training-data.zip'
+    training_data_directory = ZipFile(training_data_path)
+    training_data_contents = get_directory_structure(training_data_directory)
+    twitter_english = training_data_contents['twitter-english']
+
+    '''
+    Labels
+    '''
+    train_labels = json.loads(training_data_directory.read('rumoureval-2019-training-data/train-key.json'))
+    dev_labels = json.loads(training_data_directory.read('rumoureval-2019-training-data/dev-key.json'))
+
+    '''
+    Processing/Extraction
+    '''
+    depths, datapoints = get_twitter_datapoints(training_data_directory, twitter_english)
+    datapoints = add_depth_feature(datapoints, depths)
+    datapoints = add_twitter_labels(datapoints, train_labels, dev_labels)
+
+    # Test that we have the correct number of datapoints in total
+    assert(len(datapoints)==5568)
+
+    reply_count = 0
+    source_tweet_count = 0
+
+    for data in datapoints:
+        if(data['depth']==0):
+            source_tweet_count += 1
+        else:
+            reply_count += 1
+    # Test that we have the correct number of total 'replies' posts
+    assert(reply_count == (5568-325))
+    # Test that we have the correct number of 'source-tweet' posts
+    assert(source_tweet_count == 325)
+
+    # Test that source tweets match data points with depth 0
+    depth_zero_count = 0
+    other_depth_count = 0
+
+    for data in datapoints:
+        try:
+            if(data['depth'] == 0):
+                train_labels['subtaskbenglish'][str(data['id'])]
+                depth_zero_count += 1
+        except KeyError as e:
+            if(data['depth'] == 0):
+                dev_labels['subtaskbenglish'][str(data['id'])]
+                depth_zero_count += 1
+
+    assert(depth_zero_count == 325)
+        
 
 
-# Path to random selection of tweets in json file format - replies
-test_1 = 'rumoureval-2019-training-data/twitter-english/charliehebdo/552806309540528128/replies/552806614973960192.json'
-test_2 = 'rumoureval-2019-training-data/twitter-english/germanwings-crash/580340476949086208/replies/580341529870348288.json'
-test_3 = 'rumoureval-2019-training-data/twitter-english/prince-toronto/529660296080916480/replies/529661510369284096.json'
-test_4 = 'rumoureval-2019-training-data/twitter-english/putinmissing/576812998418939904/replies/576813541736517634.json'
-
-# Post class tests
-def test_class_instantiation():
-    path_1 = 'rumoureval-2019-training-data/twitter-english/charliehebdo/552806309540528128/replies/552806614973960192.json'
-    post = get_post(path_1)
-    print(post.get_id())
-    assert(str(post.get_id()) == '552806614973960192')
 
 
-def test_get_dict():
-    path = 'rumoureval-2019-training-data/twitter-english/charliehebdo/552783667052167168/replies/552785374507175936.json'
-    my_dict = get_dict(path)
-    assert(my_dict['id']==552785374507175936)
+
+
+
+
+
+
+
+
+    
+
+
+
+    
+
+
+        
+
+
+
+    
+    
+    
+
+

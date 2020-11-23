@@ -17,4 +17,3 @@ def unzip_data(TRAINING_DATA_DIR, TRAINING_DATA_ZIP):
             zip.extractall()
     # else:
     #     raise FileDoesNotExist
-
