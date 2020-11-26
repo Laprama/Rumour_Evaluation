@@ -8,4 +8,4 @@
 4. If you `cd data_extraction` then `python twitter_data_extraction.py` will work but wont output anything (if you want to play with the training data then import the module into a shell (as commented in `twitter_data_extraction.py`, see main).
 5. Don't try to run anything reddit related as it won't work, will have this finished soon...
 6. The `data` directory contains all the raw data if you want to explore.
-7. Link to the task is here [I'm an inline-style link](https://www.aclweb.org/anthology/S19-2147/)
+7. Link to the task is [here](https://www.aclweb.org/anthology/S19-2147/)
