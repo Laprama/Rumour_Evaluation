@@ -91,6 +91,13 @@ def add_labels(data, train_labels, dev_labels):
             datapoint['split'] = 'dev'
     return data
 
+def get_twitter_data(training_data_directory, twitter_data, train_labels, dev_labels):
+    # Processing
+    depth, data = get_twitter_datapoints(training_data_directory, twitter_data)
+    data = add_labels(data, train_labels, dev_labels)
+    data = add_depth_feature(data, depth)
+    return data
+
 
 if __name__ == "__main__":
 

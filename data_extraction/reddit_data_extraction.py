@@ -27,7 +27,6 @@ def get_reddit_datapoints(training_data_archive, reddit_training_data):
                     
     return depths, datapoints
 
-
 def process_source_array(source):
     return source['data']['children']
 
@@ -67,18 +66,38 @@ def add_rlabels(data, train_labels, dev_labels):
     return data
 
 '''
-Twitter: post depths
+Reddit: post depths
 '''
-def add_depth_feature(twitter_data, depth_dict):
-    for datapoint in twitter_data:
+def add_depth_feature(reddit_data, depth_dict):
+    for datapoint in reddit_data:
         try:
             identifier = datapoint['data']['id']
             datapoint['data']['depth'] = depth_dict[str(identifier)]
-            print(datapoint['data']['depth'])
         except RuntimeError:
             print('Error: no depth assigned for this datapoint!')
 
-    return twitter_data
+    return reddit_data
+
+
+def get_train_dev(training_data_directory, reddit_train_data, reddit_dev_data, train_labels, dev_labels):
+
+    # Processing
+    dev_depth, dev = get_reddit_datapoints(training_data_directory, reddit_dev_data)
+    train_depth, train = get_reddit_datapoints(training_data_directory, reddit_train_data)
+
+    # Post processing
+    dev = process_source_posts(dev)
+    train = process_source_posts(train)
+
+    # Add labels
+    dev = add_rlabels(dev, train_labels, dev_labels)
+    train = add_rlabels(train, train_labels, dev_labels)
+    
+    # Add depth feature
+    dev = add_depth_feature(dev, dev_depth)
+    train = add_depth_feature(train, train_depth)
+    
+    return dev, train
 
 
 if __name__ == "__main__":
@@ -98,8 +117,4 @@ if __name__ == "__main__":
     train_labels = json.loads(training_data_directory.read('rumoureval-2019-training-data/train-key.json'))
     dev_labels = json.loads(training_data_directory.read('rumoureval-2019-training-data/dev-key.json'))
 
-    # Processing
-    depth, dev = get_twitter_datapoints(training_data_directory, twitter_english)
-    dev = add_rlabels(dev, train_labels, dev_labels)
-    dev = add_depth_feature(dev, depth)
     pass
