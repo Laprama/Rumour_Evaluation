@@ -106,10 +106,14 @@ def get_twitter_data(training_data_directory, twitter_data, train_labels, dev_la
     data = add_labels(data, train_labels, dev_labels)
     data = add_depth_feature(data, depth)
     df = pd.DataFrame(data)
-    
+    return df
+
+def train_dev_split(df):
     train_df = df[df['split'] == 'train']
-    dev_df = df[df['split'] == 'dev']
+    dev_df = df[df['split'] == 'dev']    
     return train_df, dev_df
+
+
 
 
 if __name__ == "__main__":
