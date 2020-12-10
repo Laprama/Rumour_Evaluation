@@ -2,6 +2,7 @@ import os
 import json
 import zipfile
 import functools
+import pandas as pd
 from zipfile import ZipFile
 from pathlib import Path
 
@@ -84,11 +85,19 @@ def add_labels(data, train_labels, dev_labels):
     for datapoint in data:
         identifier = datapoint['id']
         try:
-            datapoint['labels'] = train_labels['subtaskaenglish'][str(identifier)]
+            datapoint['task_A_label'] = train_labels['subtaskaenglish'][str(identifier)]
             datapoint['split'] = 'train'
+            try:
+                datapoint['task_B_label'] = train_labels['subtaskbenglish'][str(identifier)]
+            except KeyError:
+                pass
         except KeyError:
-            datapoint['labels'] = dev_labels['subtaskaenglish'][str(identifier)]
+            datapoint['task_A_label'] = dev_labels['subtaskaenglish'][str(identifier)]
             datapoint['split'] = 'dev'
+            try:
+                datapoint['task_B_label'] = dev_labels['subtaskbenglish'][str(identifier)]
+            except KeyError:
+                pass
     return data
 
 def get_twitter_data(training_data_directory, twitter_data, train_labels, dev_labels):
@@ -96,7 +105,11 @@ def get_twitter_data(training_data_directory, twitter_data, train_labels, dev_la
     depth, data = get_twitter_datapoints(training_data_directory, twitter_data)
     data = add_labels(data, train_labels, dev_labels)
     data = add_depth_feature(data, depth)
-    return data
+    df = pd.DataFrame(data)
+    
+    train_df = df[df['split'] == 'train']
+    dev_df = df[df['split'] == 'dev']
+    return train_df, dev_df
 
 
 if __name__ == "__main__":
